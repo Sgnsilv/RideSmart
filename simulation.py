@@ -167,6 +167,13 @@ def find_best_pickup_and_route(G, start, end, max_walk_distance, walk_speed_mps=
     best_drive_cost = 0.0
     best_drive_path = []
     
+    # Track the best alternative pickup point where the user actually walks (p != start)
+    best_alt_p = None
+    best_alt_total_cost = float('inf')
+    best_alt_walk_cost = 0.0
+    best_alt_drive_cost = 0.0
+    best_alt_drive_path = []
+    
     # 2. Evaluate each candidate
     for p, walk_dist in candidates.items():
         # Solve vehicle route from P to end
@@ -192,17 +199,30 @@ def find_best_pickup_and_route(G, start, end, max_walk_distance, walk_speed_mps=
             best_drive_cost = drive_cost
             best_drive_path = drive_path
             
+        if p != start:
+            if total_cost < best_alt_total_cost:
+                best_alt_total_cost = total_cost
+                best_alt_p = p
+                best_alt_walk_cost = walk_cost
+                best_alt_drive_cost = drive_cost
+                best_alt_drive_path = drive_path
+            
     # 3. Solve no-walk scenario (directly start -> end by car)
     no_walk_result = path_algorithm(G, start, end, weight_field=weight_field)
     no_walk_cost = no_walk_result['cost']
     no_walk_path = no_walk_result['path']
     
     # Reconstruct walk path from start to best_p
-    # Using simple Dijkstra to get the path start -> best_p
     walk_path = []
     if best_p is not None:
         walk_result = path_algorithm(G, start, best_p, weight_field='length')
         walk_path = walk_result['path']
+        
+    # Reconstruct alternative walk path from start to best_alt_p
+    alt_walk_path = []
+    if best_alt_p is not None:
+        alt_walk_result = path_algorithm(G, start, best_alt_p, weight_field='length')
+        alt_walk_path = alt_walk_result['path']
         
     return {
         'best_pickup_node': best_p,
@@ -211,6 +231,14 @@ def find_best_pickup_and_route(G, start, end, max_walk_distance, walk_speed_mps=
         'drive_path': best_drive_path,
         'drive_cost': best_drive_cost,
         'total_cost': best_total_cost,
+        
+        'best_alt_pickup_node': best_alt_p,
+        'alt_walk_path': alt_walk_path,
+        'alt_walk_cost': best_alt_walk_cost,
+        'alt_drive_path': alt_alt_drive_path,
+        'alt_drive_cost': best_alt_drive_cost,
+        'alt_total_cost': best_alt_total_cost,
+        
         'no_walk_path': no_walk_path,
         'no_walk_cost': no_walk_cost,
         'gain': (no_walk_cost - best_total_cost) if (no_walk_cost is not None and best_total_cost != float('inf')) else None
