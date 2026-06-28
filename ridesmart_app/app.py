@@ -141,6 +141,8 @@ origin_name = st.sidebar.selectbox(
 # If selection changed, update state
 if origin_name != st.session_state.origin_sel_val:
     st.session_state.origin_sel_val = origin_name
+    if origin_name == '📍 Selecionar no Mapa...' and st.session_state.dest_sel_val == '📍 Selecionar no Mapa...':
+        st.session_state.dest_sel_val = 'Midway Mall'
     if origin_name != '📍 Selecionar no Mapa...' and origin_name != 'Coordenada Customizada':
         st.session_state.start_coords = LANDMARKS[origin_name]
     st.rerun()
@@ -148,6 +150,9 @@ if origin_name != st.session_state.origin_sel_val:
 # Active warning/cancellation for Origin map selection
 if origin_name == '📍 Selecionar no Mapa...':
     st.sidebar.warning("👉 Clique em qualquer ponto do mapa para definir a ORIGEM (A).")
+    if st.sidebar.button("🟢 Confirmar Seleção de Origem", key="confirm_origin"):
+        st.session_state.origin_sel_val = 'Coordenada Customizada'
+        st.rerun()
     if st.sidebar.button("Cancelar Seleção de Origem", key="cancel_origin"):
         st.session_state.origin_sel_val = 'CT (Centro de Tecnologia)'
         st.session_state.start_coords = LANDMARKS['CT (Centro de Tecnologia)']
@@ -173,6 +178,8 @@ dest_name = st.sidebar.selectbox(
 # If selection changed, update state
 if dest_name != st.session_state.dest_sel_val:
     st.session_state.dest_sel_val = dest_name
+    if dest_name == '📍 Selecionar no Mapa...' and st.session_state.origin_sel_val == '📍 Selecionar no Mapa...':
+        st.session_state.origin_sel_val = 'CT (Centro de Tecnologia)'
     if dest_name != '📍 Selecionar no Mapa...' and dest_name != 'Coordenada Customizada':
         st.session_state.dest_coords = LANDMARKS[dest_name]
     st.rerun()
@@ -180,6 +187,9 @@ if dest_name != st.session_state.dest_sel_val:
 # Active warning/cancellation for Destination map selection
 if dest_name == '📍 Selecionar no Mapa...':
     st.sidebar.warning("👉 Clique em qualquer ponto do mapa para definir o DESTINO (B).")
+    if st.sidebar.button("🔴 Confirmar Seleção de Destino", key="confirm_dest"):
+        st.session_state.dest_sel_val = 'Coordenada Customizada'
+        st.rerun()
     if st.sidebar.button("Cancelar Seleção de Destino", key="cancel_dest"):
         st.session_state.dest_sel_val = 'Midway Mall'
         st.session_state.dest_coords = LANDMARKS['Midway Mall']
@@ -348,14 +358,12 @@ else:
                     if st.session_state.origin_sel_val == '📍 Selecionar no Mapa...':
                         node = ox.distance.nearest_nodes(G_walk, X=click_lon, Y=click_lat)
                         st.session_state.start_coords = (G_walk.nodes[node]['y'], G_walk.nodes[node]['x'])
-                        st.session_state.origin_sel_val = 'Coordenada Customizada'
                         st.rerun()
                         
                     # Snap and update Destination
                     elif st.session_state.dest_sel_val == '📍 Selecionar no Mapa...':
                         node = ox.distance.nearest_nodes(G_drive, X=click_lon, Y=click_lat)
                         st.session_state.dest_coords = (G_drive.nodes[node]['y'], G_drive.nodes[node]['x'])
-                        st.session_state.dest_sel_val = 'Coordenada Customizada'
                         st.rerun()
             
         with analysis_col:
