@@ -235,7 +235,7 @@ def find_best_pickup_and_route(G, start, end, max_walk_distance, walk_speed_mps=
         'best_alt_pickup_node': best_alt_p,
         'alt_walk_path': alt_walk_path,
         'alt_walk_cost': best_alt_walk_cost,
-        'alt_drive_path': alt_alt_drive_path,
+        'alt_drive_path': best_alt_drive_path,
         'alt_drive_cost': best_alt_drive_cost,
         'alt_total_cost': best_alt_total_cost,
         
