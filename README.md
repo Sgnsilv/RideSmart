@@ -16,7 +16,7 @@ Dado um ponto de origem $A$, um destino $B$ e uma distância máxima de caminhad
 ## 2. Modelagem do Problema
 
 ### 2.1 Representação do Grafo
-O problema foi modelado como um **grafo direcionado ($G = (V, E)$)** utilizando a biblioteca `NetworkX` para a estrutura de dados. A malha viária real de Natal/RN foi extraída e convertida a partir de dados geográficos do OpenStreetMap usando a biblioteca `OSMnx`, centrada na região que abrange o Campus Central da UFRN, Midway Mall, Natal Shopping e a Havan, cobrindo uma área de raio $3.5\text{ km}$.
+O problema foi modelado como um **grafo direcionado ( $G = (V, E)$ )** utilizando a biblioteca `NetworkX` para a estrutura de dados. A malha viária real de Natal/RN foi extraída e convertida a partir de dados geográficos do OpenStreetMap usando a biblioteca `OSMnx`, centrada na região que abrange o Campus Central da UFRN, Midway Mall, Natal Shopping e a Havan, cobrindo uma área de raio $3.5\text{ km}$.
 * **Nós ($V$)**: Representam interseções de vias, cruzamentos, retornos ou bifurcações. Cada nó possui atributos geográficos (`x` para longitude e `y` para latitude).
 * **Arestas ($E$)**: Representam os segmentos de vias físicas que conectam as interseções, respeitando as mãos de direção das vias (grafo direcionado).
 
@@ -81,7 +81,7 @@ Abaixo está a tabela comparativa contendo as médias computacionais obtidas no 
 
 | Algoritmo | Tempo Médio (ms) | Nós Expandidos Médios | Eficiência de Busca |
 | :--- | :---: | :---: | :---: |
-| **Dijkstra Simples** | 2.50 ms | 134.5 | Ruim ($O(V^2)$) |
+| **Dijkstra Simples** | 2.50 ms | 134.5 | Ruim ( $O(V^2)$ ) |
 | **Dijkstra Heap** | 0.22 ms | 135.5 | Excelente |
 | **A\*** | 0.35 ms | 98.4 | Altamente Direcionada |
 | **Dijkstra Bidirecional** | 0.26 ms | 88.2 | Menor Espaço de Busca |
