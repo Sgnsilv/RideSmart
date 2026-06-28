@@ -106,7 +106,7 @@ ALGORITHMS = {
     'Dijkstra Simples': dijkstra_simple
 }
 
-# Initialize session states
+# Initialize session state variables
 if 'start_coords' not in st.session_state:
     st.session_state.start_coords = LANDMARKS['CT (Centro de Tecnologia)']
 if 'dest_coords' not in st.session_state:
@@ -114,83 +114,112 @@ if 'dest_coords' not in st.session_state:
 if 'last_click_seen' not in st.session_state:
     st.session_state.last_click_seen = None
 
-# Initialize selectbox state keys
-if 'origin_sel' not in st.session_state:
-    st.session_state.origin_sel = 'CT (Centro de Tecnologia)'
-if 'dest_sel' not in st.session_state:
-    st.session_state.dest_sel = 'Midway Mall'
+# We store selectbox values as raw strings in session state
+if 'origin_sel_val' not in st.session_state:
+    st.session_state.origin_sel_val = 'CT (Centro de Tecnologia)'
+if 'dest_sel_val' not in st.session_state:
+    st.session_state.dest_sel_val = 'Midway Mall'
+
+# Map Click Event handling at the VERY TOP of the execution
+if 'my_map' in st.session_state and st.session_state.my_map is not None:
+    map_data = st.session_state.my_map
+    if 'last_clicked' in map_data and map_data['last_clicked'] is not None:
+        click = map_data['last_clicked']
+        
+        # Check if the click is a new event
+        if st.session_state.last_click_seen != click:
+            st.session_state.last_click_seen = click
+            click_lat = click['lat']
+            click_lon = click['lng']
+            
+            # Snap and update Origin
+            if st.session_state.origin_sel_val == '📍 Selecionar no Mapa...':
+                node = ox.distance.nearest_nodes(G_walk, X=click_lon, Y=click_lat)
+                st.session_state.start_coords = (G_walk.nodes[node]['y'], G_walk.nodes[node]['x'])
+                
+            # Snap and update Destination
+            elif st.session_state.dest_sel_val == '📍 Selecionar no Mapa...':
+                node = ox.distance.nearest_nodes(G_drive, X=click_lon, Y=click_lat)
+                st.session_state.dest_coords = (G_drive.nodes[node]['y'], G_drive.nodes[node]['x'])
 
 # Sidebar inputs
 st.sidebar.header("⚙️ Configurações da Rota")
 st.sidebar.subheader("📍 Endereços de Referência")
 
-# Callback to update coordinates when dropdown changes
-def on_origin_change():
-    sel = st.session_state.origin_sel
-    if sel != 'Coordenada Customizada' and sel != '📍 Selecionar no Mapa...':
-        st.session_state.start_coords = LANDMARKS[sel]
-
-def on_dest_change():
-    sel = st.session_state.dest_sel
-    if sel != 'Coordenada Customizada' and sel != '📍 Selecionar no Mapa...':
-        st.session_state.dest_coords = LANDMARKS[sel]
-
-# Origin Selection dropdown
+# Render Origin Selectbox
 origin_list = list(LANDMARKS.keys())
+try:
+    orig_idx = origin_list.index(st.session_state.origin_sel_val)
+except ValueError:
+    orig_idx = 1 # CT fallback
+
 origin_name = st.sidebar.selectbox(
     "Origem (A)", 
     origin_list, 
-    key="origin_sel",
-    on_change=on_origin_change
+    index=orig_idx,
+    key="origin_widget"
 )
 
-# Active state instruction for Origin selection on map
+# If selection changed, update state
+if origin_name != st.session_state.origin_sel_val:
+    st.session_state.origin_sel_val = origin_name
+    if origin_name != '📍 Selecionar no Mapa...' and origin_name != 'Coordenada Customizada':
+        st.session_state.start_coords = LANDMARKS[origin_name]
+    st.rerun()
+
+# Active warning/cancellation for Origin map selection
 if origin_name == '📍 Selecionar no Mapa...':
-    st.sidebar.warning("👉 Clique em qualquer ponto do mapa à direita para definir o ponto de início (Origem).")
+    st.sidebar.warning("👉 Clique em qualquer ponto do mapa para definir a ORIGEM (A).")
     if st.sidebar.button("Cancelar Seleção de Origem"):
-        # Reset to default CT preset
-        st.session_state.origin_sel = 'CT (Centro de Tecnologia)'
+        st.session_state.origin_sel_val = 'CT (Centro de Tecnologia)'
         st.session_state.start_coords = LANDMARKS['CT (Centro de Tecnologia)']
         st.rerun()
-
 elif origin_name == 'Coordenada Customizada':
     o_lat = st.sidebar.number_input("Lat Origem", value=st.session_state.start_coords[0], format="%.5f")
     o_lon = st.sidebar.number_input("Lon Origem", value=st.session_state.start_coords[1], format="%.5f")
     st.session_state.start_coords = (o_lat, o_lon)
 
-# Destination Selection dropdown
+# Render Destination Selectbox
+try:
+    dest_idx = origin_list.index(st.session_state.dest_sel_val)
+except ValueError:
+    dest_idx = 5 # Midway fallback
+
 dest_name = st.sidebar.selectbox(
     "Destino (B)", 
     origin_list, 
-    key="dest_sel",
-    on_change=on_dest_change
+    index=dest_idx,
+    key="dest_widget"
 )
 
-# Active state instruction for Destination selection on map
+# If selection changed, update state
+if dest_name != st.session_state.dest_sel_val:
+    st.session_state.dest_sel_val = dest_name
+    if dest_name != '📍 Selecionar no Mapa...' and dest_name != 'Coordenada Customizada':
+        st.session_state.dest_coords = LANDMARKS[dest_name]
+    st.rerun()
+
+# Active warning/cancellation for Destination map selection
 if dest_name == '📍 Selecionar no Mapa...':
-    st.sidebar.warning("👉 Clique em qualquer ponto do mapa à direita para definir o ponto de destino.")
+    st.sidebar.warning("👉 Clique em qualquer ponto do mapa para definir o DESTINO (B).")
     if st.sidebar.button("Cancelar Seleção de Destino"):
-        # Reset to default Midway preset
-        st.session_state.dest_sel = 'Midway Mall'
+        st.session_state.dest_sel_val = 'Midway Mall'
         st.session_state.dest_coords = LANDMARKS['Midway Mall']
         st.rerun()
-
 elif dest_name == 'Coordenada Customizada':
     d_lat = st.sidebar.number_input("Lat Destino", value=st.session_state.dest_coords[0], format="%.5f")
     d_lon = st.sidebar.number_input("Lon Destino", value=st.session_state.dest_coords[1], format="%.5f")
     st.session_state.dest_coords = (d_lat, d_lon)
 
-# Read current coordinates from session state
+# Current coordinates for optimization
 origin_coords = st.session_state.start_coords
 dest_coords = st.session_state.dest_coords
 
-# Distance Slider
+# Distance and Speed Sliders
 max_walk = st.sidebar.slider("Distância Máxima de Caminhada X (m)", 50, 1000, 300, step=50)
-
-# Speed Slider
 walk_speed = st.sidebar.slider("Velocidade do Pedestre (m/s)", 0.8, 2.0, 1.2, step=0.1)
 
-# Algorithm Selection
+# Algorithm dropdown
 alg_name = st.sidebar.selectbox("Algoritmo de Roteamento", list(ALGORITHMS.keys()), index=0)
 selected_alg = ALGORITHMS[alg_name]
 
@@ -202,7 +231,6 @@ st.markdown('<div class="subtitle">Simulador interativo de embarque dinâmico e 
 if origin_coords == dest_coords:
     st.error("A origem e o destino não podem ser nas mesmas coordenadas.")
 else:
-    # Run optimization
     res = find_best_pickup_and_route_multimodal(
         G_drive=G_drive,
         G_walk=G_walk,
@@ -221,7 +249,6 @@ else:
         # Layout metrics
         col1, col2, col3, col4 = st.columns(4)
         
-        # Calculate metric variables
         total_time_min = res['total_cost'] / 60.0
         walk_dist_m = res['walk_cost'] * walk_speed
         walk_time_min = res['walk_cost'] / 60.0
@@ -282,10 +309,10 @@ else:
         with map_col:
             st.subheader("🗺️ Mapa da Rota Multimodal Otimizada")
             
-            # Draw folium map centered on current origin
+            # Center map
             m = folium.Map(location=origin_coords, zoom_start=14, control_scale=True)
             
-            # Highlight congestion circle
+            # Congestion Circle
             ufrn_center = (-5.8422, -35.2023)
             folium.Circle(
                 location=ufrn_center,
@@ -297,7 +324,7 @@ else:
                 tooltip="Área de Congestionamento (R=1200m)"
             ).add_to(m)
             
-            # Markers - snapped to nearest nodes for visual correctness
+            # Snapping markers
             snapped_origin_node = ox.distance.nearest_nodes(G_walk, X=origin_coords[1], Y=origin_coords[0])
             snapped_origin = (G_walk.nodes[snapped_origin_node]['y'], G_walk.nodes[snapped_origin_node]['x'])
             
@@ -307,19 +334,17 @@ else:
             folium.Marker(location=snapped_origin, popup="Origem (A)", icon=folium.Icon(color='green', icon='user', prefix='fa')).add_to(m)
             folium.Marker(location=snapped_dest, popup="Destino (B)", icon=folium.Icon(color='red', icon='flag', prefix='fa')).add_to(m)
             
-            # Walk route
+            # Routes
             walk_path = res['walk_path']
             if walk_path:
                 walk_line = [(G_walk.nodes[n]['y'], G_walk.nodes[n]['x']) for n in walk_path]
                 folium.PolyLine(walk_line, color='#1e88e5', weight=5, opacity=0.9, tooltip="Trecho de Caminhada").add_to(m)
                 
-            # Drive route
             drive_path = res['drive_path']
             if drive_path:
                 drive_line = [(G_drive.nodes[n]['y'], G_drive.nodes[n]['x']) for n in drive_path]
                 folium.PolyLine(drive_line, color='#e53935', weight=4, opacity=0.8, tooltip="Trecho de Carro").add_to(m)
                 
-            # Pickup marker P
             p_node = res['best_pickup_node']
             p_lat, p_lon = G_drive.nodes[p_node]['y'], G_drive.nodes[p_node]['x']
             folium.Marker(
@@ -328,36 +353,12 @@ else:
                 icon=folium.Icon(color='purple', icon='car', prefix='fa')
             ).add_to(m)
             
-            # Capture click events and render the map
-            map_data = st_folium(m, width=900, height=500)
-            
-            # If map is clicked, update coordinates
-            if map_data and map_data.get('last_clicked'):
-                click_lat = map_data['last_clicked']['lat']
-                click_lon = map_data['last_clicked']['lng']
-                
-                # Check if click is new
-                if st.session_state.last_click_seen != map_data['last_clicked']:
-                    st.session_state.last_click_seen = map_data['last_clicked']
-                    
-                    # Capture for Origin
-                    if origin_name == '📍 Selecionar no Mapa...':
-                        # Snap to nearest G_walk node immediately for high usability
-                        node = ox.distance.nearest_nodes(G_walk, X=click_lon, Y=click_lat)
-                        st.session_state.start_coords = (G_walk.nodes[node]['y'], G_walk.nodes[node]['x'])
-                        st.rerun()
-                        
-                    # Capture for Destination
-                    elif dest_name == '📍 Selecionar no Mapa...':
-                        # Snap to nearest G_drive node immediately
-                        node = ox.distance.nearest_nodes(G_drive, X=click_lon, Y=click_lat)
-                        st.session_state.dest_coords = (G_drive.nodes[node]['y'], G_drive.nodes[node]['x'])
-                        st.rerun()
+            # Display map with key="my_map" to bind its state to st.session_state.my_map
+            st_folium(m, width=900, height=500, key="my_map")
             
         with analysis_col:
             st.subheader("📊 Análise e Diagnóstico")
             
-            # Explanatory card
             if walk_dist_m > 10.0:
                 st.info(f"""
                 **Análise da Decisão:**
@@ -373,26 +374,26 @@ else:
                 Neste trajeto, a velocidade da caminhada a pé não compensaria nenhuma rota alternativa do veículo, ou a origem já se encontra fora da zona central de congestionamento.
                 """)
                 
-            # Dynamic warning alerts if map selection is active
+            # Warnings
             if origin_name == '📍 Selecionar no Mapa...':
                 st.warning("⚠️ **Aguardando clique no mapa** para registrar a **Origem (A)**.")
             if dest_name == '📍 Selecionar no Mapa...':
                 st.warning("⚠️ **Aguardando clique no mapa** para registrar o **Destino (B)**.")
                 
-            # Guide on how to click
             st.success("""
             **💡 Como selecionar no mapa:**
             1. Selecione `📍 Selecionar no Mapa...` no menu de Origem ou Destino na barra lateral.
-            2. Clique em qualquer rua do mapa para definir o ponto. Ele será **automaticamente ajustado à via válida mais próxima**!
+            2. Clique em qualquer rua do mapa.
+            3. A coordenada será **snappada automaticamente à via válida mais próxima**!
             """)
             
-            # Algorithm details
             st.write("---")
             st.subheader("⚡ Detalhes Computacionais")
             st.write(f"**Algoritmo Utilizado:** `{alg_name}`")
             
             st.markdown(f"""
-            * **Nós expandidos nesta busca:** `{len(drive_path) * 4}` (estimativa)
+            * **Origem atual:** `({origin_coords[0]:.5f}, {origin_coords[1]:.5f})`
+            * **Destino atual:** `({dest_coords[0]:.5f}, {dest_coords[1]:.5f})`
             * **Fator de tráfego na origem:** `{G_drive.nodes[p_node].get('congestion_factor', 1.0):.2f}x`
             """)
 
