@@ -9,6 +9,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
+# Configure OSMnx to use the pre-existing cache directory in the project root
+ox.settings.use_cache = True
+ox.settings.cache_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "cache"))
+
 # Add parent directory to path so we can import simulation and algorithms
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
