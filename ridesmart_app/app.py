@@ -95,7 +95,8 @@ LANDMARKS = {
     'Midway Mall': (-5.8118, -35.2052),
     'Natal Shopping': (-5.8427, -35.2100),
     'Havan Natal': (-5.8166, -35.2120),
-    'Coordenada Customizada': None
+    'Coordenada Customizada': None,
+    'Mapa (Coordenada Customizada)': None
 }
 
 ALGORITHMS = {
@@ -105,26 +106,79 @@ ALGORITHMS = {
     'Dijkstra Simples': dijkstra_simple
 }
 
+# Initialize session state for interactive map clicking
+if 'start_coords' not in st.session_state:
+    st.session_state.start_coords = (-5.8427, -35.210) # default CT
+if 'dest_coords' not in st.session_state:
+    st.session_state.dest_coords = (-5.8118, -35.2052) # default Midway
+if 'last_click_seen' not in st.session_state:
+    st.session_state.last_click_seen = None
+if 'origin_select_idx' not in st.session_state:
+    st.session_state.origin_select_idx = 2 # default CT index
+if 'dest_select_idx' not in st.session_state:
+    st.session_state.dest_select_idx = 4 # default Midway index
+
 # Sidebar inputs
 st.sidebar.header("⚙️ Configurações da Rota")
 
-# Origin Selection
-origin_name = st.sidebar.selectbox("Origem (A)", list(LANDMARKS.keys()), index=2) # Default CT
-if origin_name == 'Coordenada Customizada':
-    o_lat = st.sidebar.number_input("Lat Origem", value=-5.8427, format="%.5f")
-    o_lon = st.sidebar.number_input("Lon Origem", value=-35.2100, format="%.5f")
-    origin_coords = (o_lat, o_lon)
-else:
-    origin_coords = LANDMARKS[origin_name]
+# Click Mode selector
+st.sidebar.subheader("🖱️ Seleção Direta no Mapa")
+click_mode = st.sidebar.radio(
+    "Clique no mapa para alterar:",
+    ["🟢 Definir Origem (A)", "🔴 Definir Destino (B)"],
+    help="Selecione uma opção e dê um clique em qualquer rua do mapa à direita para marcar as coordenadas instantaneamente."
+)
 
-# Destination Selection
-dest_name = st.sidebar.selectbox("Destino (B)", list(LANDMARKS.keys()), index=4) # Default Midway
+st.sidebar.subheader("📍 Endereços de Referência")
+
+# Callback to update coordinates when dropdown changes
+def on_origin_change():
+    sel = st.session_state.origin_sel
+    if sel != 'Coordenada Customizada' and sel != 'Mapa (Coordenada Customizada)':
+        st.session_state.start_coords = LANDMARKS[sel]
+
+def on_dest_change():
+    sel = st.session_state.dest_sel
+    if sel != 'Coordenada Customizada' and sel != 'Mapa (Coordenada Customizada)':
+        st.session_state.dest_coords = LANDMARKS[sel]
+
+# Origin Selection dropdown
+origin_list = list(LANDMARKS.keys())
+origin_name = st.sidebar.selectbox(
+    "Origem (A)", 
+    origin_list, 
+    key="origin_sel",
+    on_change=on_origin_change,
+    index=st.session_state.origin_select_idx
+)
+
+# Custom input coordinates if selected
+if origin_name == 'Coordenada Customizada':
+    o_lat = st.sidebar.number_input("Lat Origem", value=st.session_state.start_coords[0], format="%.5f")
+    o_lon = st.sidebar.number_input("Lon Origem", value=st.session_state.start_coords[1], format="%.5f")
+    st.session_state.start_coords = (o_lat, o_lon)
+elif origin_name == 'Mapa (Coordenada Customizada)':
+    st.sidebar.info(f"Origem marcada via clique no mapa:\n({st.session_state.start_coords[0]:.5f}, {st.session_state.start_coords[1]:.5f})")
+
+# Destination Selection dropdown
+dest_name = st.sidebar.selectbox(
+    "Destino (B)", 
+    origin_list, 
+    key="dest_sel",
+    on_change=on_dest_change,
+    index=st.session_state.dest_select_idx
+)
+
 if dest_name == 'Coordenada Customizada':
-    d_lat = st.sidebar.number_input("Lat Destino", value=-5.8118, format="%.5f")
-    d_lon = st.sidebar.number_input("Lon Destino", value=-35.2052, format="%.5f")
-    dest_coords = (d_lat, d_lon)
-else:
-    dest_coords = LANDMARKS[dest_name]
+    d_lat = st.sidebar.number_input("Lat Destino", value=st.session_state.dest_coords[0], format="%.5f")
+    d_lon = st.sidebar.number_input("Lon Destino", value=st.session_state.dest_coords[1], format="%.5f")
+    st.session_state.dest_coords = (d_lat, d_lon)
+elif dest_name == 'Mapa (Coordenada Customizada)':
+    st.sidebar.info(f"Destino marcado via clique no mapa:\n({st.session_state.dest_coords[0]:.5f}, {st.session_state.dest_coords[1]:.5f})")
+
+# Read current coordinates from session state
+origin_coords = st.session_state.start_coords
+dest_coords = st.session_state.dest_coords
 
 # Distance Slider
 max_walk = st.sidebar.slider("Distância Máxima de Caminhada X (m)", 50, 1000, 300, step=50)
@@ -138,14 +192,13 @@ selected_alg = ALGORITHMS[alg_name]
 
 # Title
 st.markdown('<div class="main-title">🚗 RideSmart: Otimização Multimodal de Rotas</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Simulador interativo de embarque dinâmico e integração multimodal (Pedestre + Carro).</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Simulador interativo de embarque dinâmico e integração multimodal (Pedestre + Carro). Clique em qualquer ponto do mapa para reposicionar os pontos A e B.</div>', unsafe_allow_html=True)
 
 # Run Query
 if origin_coords == dest_coords:
-    st.error("A origem e o destino não podem ser iguais.")
+    st.error("A origem e o destino não podem ser nas mesmas coordenadas.")
 else:
     # Run optimization
-    # A* needs max_speed parameter, others don't, but find_best_pickup_and_route_multimodal accepts path_algorithm
     res = find_best_pickup_and_route_multimodal(
         G_drive=G_drive,
         G_walk=G_walk,
@@ -223,9 +276,9 @@ else:
         map_col, analysis_col = st.columns([7, 3])
         
         with map_col:
-            st.subheader("🗺️ Mapa da Rota Multimodal Otimizada")
+            st.subheader("🗺️ Mapa da Rota Multimodal Otimizada (Clique no mapa para mudar A/B)")
             
-            # Draw folium map
+            # Draw folium map centered on current origin
             m = folium.Map(location=origin_coords, zoom_start=14, control_scale=True)
             
             # Highlight congestion circle
@@ -265,8 +318,29 @@ else:
                 icon=folium.Icon(color='purple', icon='car', prefix='fa')
             ).add_to(m)
             
-            # Display folium map in streamlit
-            st_folium(m, width=900, height=500, returned_objects=[])
+            # Capture click events and render the map
+            map_data = st_folium(m, width=900, height=500)
+            
+            # If map is clicked, update st.session_state coordinates
+            if map_data and map_data.get('last_clicked'):
+                click_lat = map_data['last_clicked']['lat']
+                click_lon = map_data['last_clicked']['lng']
+                
+                # Check if click is new
+                if st.session_state.last_click_seen != map_data['last_clicked']:
+                    st.session_state.last_click_seen = map_data['last_clicked']
+                    
+                    if click_mode == "🟢 Definir Origem (A)":
+                        st.session_state.start_coords = (click_lat, click_lon)
+                        st.session_state.origin_select_idx = 8 # index of 'Mapa (Coordenada Customizada)'
+                        # Temporarily update selectbox selection to map mode
+                        st.session_state.origin_sel = 'Mapa (Coordenada Customizada)'
+                    else:
+                        st.session_state.dest_coords = (click_lat, click_lon)
+                        st.session_state.dest_select_idx = 8 # index of 'Mapa (Coordenada Customizada)'
+                        st.session_state.dest_sel = 'Mapa (Coordenada Customizada)'
+                        
+                    st.rerun()
             
         with analysis_col:
             st.subheader("📊 Análise e Diagnóstico")
@@ -287,19 +361,23 @@ else:
                 Neste trajeto, a velocidade da caminhada a pé não compensaria nenhuma rota alternativa do veículo, ou a origem já se encontra fora da zona central de congestionamento.
                 """)
                 
+            # Guide on how to click
+            st.success("""
+            **💡 Como selecionar no mapa:**
+            1. Selecione na barra lateral o ponto que deseja alterar (Origem ou Destino).
+            2. Clique em qualquer rua do mapa.
+            3. A rota será recalculada instantaneamente!
+            """)
+            
             # Algorithm details
             st.write("---")
             st.subheader("⚡ Detalhes Computacionais")
             st.write(f"**Algoritmo Utilizado:** `{alg_name}`")
             
-            # Show simple stats
-            # We can run a small comparison using Dijkstra Heap to demonstrate the difference if not already selected
             st.markdown(f"""
             * **Nós expandidos nesta busca:** `{len(drive_path) * 4}` (estimativa)
             * **Fator de tráfego na origem:** `{G_drive.nodes[p_node].get('congestion_factor', 1.0):.2f}x`
             """)
-            
-            st.success("Simulação executada com sucesso na malha viária real de Natal/RN!")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**RideSmart v1.0** — Projeto de Algoritmos II")
