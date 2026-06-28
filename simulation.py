@@ -385,10 +385,16 @@ def find_best_pickup_and_route_multimodal(
     end_drive_node = ox.distance.nearest_nodes(G_drive, X=end_coords[1], Y=end_coords[0])
     start_drive_node = ox.distance.nearest_nodes(G_drive, X=start_coords[1], Y=start_coords[0])
     
-    # Get candidate pickup nodes
+    # Get candidate pickup nodes from walk graph
     candidates = find_candidate_pickup_points_multimodal(
         G_walk, start_walk_node, max_walk_distance, transfer_mapping
     )
+    
+    # Always include the nearest drive node to the origin as a direct candidate
+    # (walk_cost = 0, i.e. board the car right at the origin). This ensures
+    # a viable route exists even when max_walk_distance is very small.
+    if start_drive_node not in candidates:
+        candidates[start_drive_node] = {'walk_dist': 0.0, 'walk_node': start_walk_node}
     
     best_p = None
     best_p_walk = None
