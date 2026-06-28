@@ -120,34 +120,6 @@ if 'origin_sel_val' not in st.session_state:
 if 'dest_sel_val' not in st.session_state:
     st.session_state.dest_sel_val = 'Midway Mall'
 
-# Map Click Event handling at the VERY TOP of the execution
-if 'my_map' in st.session_state and st.session_state.my_map is not None:
-    map_data = st.session_state.my_map
-    if 'last_clicked' in map_data and map_data['last_clicked'] is not None:
-        click = map_data['last_clicked']
-        
-        # Check if the click is a new event
-        if st.session_state.last_click_seen != click:
-            st.session_state.last_click_seen = click
-            click_lat = click['lat']
-            click_lon = click['lng']
-            
-            # If Origin Selection is active:
-            # Snap to walking graph, save, and IMMEDIATELY switch dropdown to lock it
-            if st.session_state.origin_sel_val == '📍 Selecionar no Mapa...':
-                node = ox.distance.nearest_nodes(G_walk, X=click_lon, Y=click_lat)
-                st.session_state.start_coords = (G_walk.nodes[node]['y'], G_walk.nodes[node]['x'])
-                st.session_state.origin_sel_val = 'Coordenada Customizada'
-                st.rerun()
-                
-            # If Destination Selection is active:
-            # Snap to driving graph, save, and IMMEDIATELY switch dropdown to lock it
-            elif st.session_state.dest_sel_val == '📍 Selecionar no Mapa...':
-                node = ox.distance.nearest_nodes(G_drive, X=click_lon, Y=click_lat)
-                st.session_state.dest_coords = (G_drive.nodes[node]['y'], G_drive.nodes[node]['x'])
-                st.session_state.dest_sel_val = 'Coordenada Customizada'
-                st.rerun()
-
 # Sidebar inputs
 st.sidebar.header("⚙️ Configurações da Rota")
 st.sidebar.subheader("📍 Endereços de Referência")
@@ -169,9 +141,6 @@ origin_name = st.sidebar.selectbox(
 # If selection changed, update state
 if origin_name != st.session_state.origin_sel_val:
     st.session_state.origin_sel_val = origin_name
-    # When selecting on map, do not update start_coords yet (wait for click)
-    # When selecting custom coordinates, do not update start_coords (handled by inputs below)
-    # When selecting predefined landmark, update coordinates immediately
     if origin_name != '📍 Selecionar no Mapa...' and origin_name != 'Coordenada Customizada':
         st.session_state.start_coords = LANDMARKS[origin_name]
     st.rerun()
@@ -362,8 +331,32 @@ else:
                 icon=folium.Icon(color='purple', icon='car', prefix='fa')
             ).add_to(m)
             
-            # Display map with key="my_map" to bind its state to st.session_state.my_map
-            st_folium(m, width=900, height=500, key="my_map")
+            # Display map and capture click events directly
+            map_data = st_folium(m, width=900, height=500)
+            
+            # If map is clicked, update coordinates immediately
+            if map_data and map_data.get('last_clicked'):
+                click = map_data['last_clicked']
+                
+                # Check if the click is a new event
+                if st.session_state.last_click_seen != click:
+                    st.session_state.last_click_seen = click
+                    click_lat = click['lat']
+                    click_lon = click['lng']
+                    
+                    # Snap and update Origin
+                    if st.session_state.origin_sel_val == '📍 Selecionar no Mapa...':
+                        node = ox.distance.nearest_nodes(G_walk, X=click_lon, Y=click_lat)
+                        st.session_state.start_coords = (G_walk.nodes[node]['y'], G_walk.nodes[node]['x'])
+                        st.session_state.origin_sel_val = 'Coordenada Customizada'
+                        st.rerun()
+                        
+                    # Snap and update Destination
+                    elif st.session_state.dest_sel_val == '📍 Selecionar no Mapa...':
+                        node = ox.distance.nearest_nodes(G_drive, X=click_lon, Y=click_lat)
+                        st.session_state.dest_coords = (G_drive.nodes[node]['y'], G_drive.nodes[node]['x'])
+                        st.session_state.dest_sel_val = 'Coordenada Customizada'
+                        st.rerun()
             
         with analysis_col:
             st.subheader("📊 Análise e Diagnóstico")
