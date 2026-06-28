@@ -360,11 +360,12 @@ else:
             st.subheader("📊 Análise e Diagnóstico")
             
             if walk_dist_m > 10.0:
+                gain_val = res['gain'] if res['gain'] is not None else 0.0
                 st.info(f"""
                 **Análise da Decisão:**
                 O algoritmo multimodal sugeriu que você caminhasse **{walk_dist_m:.1f} metros** até o ponto **Nó {p_node}**.
                 
-                Isso ocorre porque embarcar diretamente na origem **A** exigiria que o carro entrasse em vias muito congestionadas ou fizesse loops viários ineficientes. Caminhando um pouco, você contornou essas barreiras urbanas e economizou **{res['gain']:.1f} segundos** no total.
+                Isso ocorre porque embarcar diretamente na origem **A** exigiria que o carro entrasse em vias muito congestionadas ou fizesse loops viários ineficientes. Caminhando um pouco, você contornou essas barreiras urbanas e economizou **{gain_val:.1f} segundos** no total.
                 """)
             else:
                 st.info("""
