@@ -170,7 +170,10 @@ if origin_name != st.session_state.origin_sel_val:
 # Active warning/cancellation for Origin map selection
 if origin_name == '📍 Selecionar no Mapa...':
     st.sidebar.warning("👉 Clique em qualquer ponto do mapa para definir a ORIGEM (A).")
-    if st.sidebar.button("Cancelar Seleção de Origem"):
+    if st.sidebar.button("🟢 Confirmar Seleção de Origem", key="confirm_origin"):
+        st.session_state.origin_sel_val = 'Coordenada Customizada'
+        st.rerun()
+    if st.sidebar.button("Cancelar Seleção de Origem", key="cancel_origin"):
         st.session_state.origin_sel_val = 'CT (Centro de Tecnologia)'
         st.session_state.start_coords = LANDMARKS['CT (Centro de Tecnologia)']
         st.rerun()
@@ -202,7 +205,10 @@ if dest_name != st.session_state.dest_sel_val:
 # Active warning/cancellation for Destination map selection
 if dest_name == '📍 Selecionar no Mapa...':
     st.sidebar.warning("👉 Clique em qualquer ponto do mapa para definir o DESTINO (B).")
-    if st.sidebar.button("Cancelar Seleção de Destino"):
+    if st.sidebar.button("🔴 Confirmar Seleção de Destino", key="confirm_dest"):
+        st.session_state.dest_sel_val = 'Coordenada Customizada'
+        st.rerun()
+    if st.sidebar.button("Cancelar Seleção de Destino", key="cancel_dest"):
         st.session_state.dest_sel_val = 'Midway Mall'
         st.session_state.dest_coords = LANDMARKS['Midway Mall']
         st.rerun()
