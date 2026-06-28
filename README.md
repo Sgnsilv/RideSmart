@@ -21,7 +21,7 @@ A modelagem do RideSmart destaca uma escolha importante de design de algoritmo:
 ## 2. Modelagem do Problema
 
 ### 2.1 Representação do Grafo e Fusão Multimodal
-O problema foi modelado utilizando uma **arquitetura de fusão de grafos multimodais**, separando a infraestrutura de pedestres e veículos em dois grafos distintos, extraídos via `OSMnx` com raio de $3.5\text{ km}$:
+O problema foi modelado utilizando uma **arquitetura de fusão de grafos multimodais**, separando a infraestrutura de pedestres e veículos em dois grafos distintos, extraídos via `OSMnx` com raio de $3.5\text{km}$:
 1. **Grafo de Caminhada ($G_{\text{walk}}$)**: Baixado com `network_type='walk'`, contendo calçadas, escadarias, passarelas e áreas pedonais exclusivas. As arestas são bidirecionais (pedestres podem caminhar em ambos os sentidos).
 2. **Grafo de Veículos ($G_{\text{drive}}$)**: Baixado com `network_type='drive'`, representando as ruas físicas transitáveis por carros, respeitando estritamente o sentido das vias (mão única/mão dupla).
 
@@ -31,9 +31,9 @@ A conexão entre ambos os grafos é feita através de um **Mapeamento de Transfe
 Foram definidos três pesos principais nas arestas do grafo para refletir diferentes métricas físicas e operacionais:
 1. **Distância Física (`length`)**: Comprimento real do segmento de via em metros.
 2. **Tempo em Fluxo Livre (`time_free_flow`)**: Tempo ideal de tráfego de carro calculado como:
-   $$T_{\text{free\_flow}} = \frac{\text{comprimento (m)}}{\text{velocidade máxima da via (m/s)}}$$
+   $$T_{\text{free flow}} = \frac{\text{comprimento (m)}}{\text{velocidade máxima da via (m/s)}}$$
 3. **Tempo sob Trânsito Sintético (`time_traffic`)**: Simula congestionamentos no horário de pico por meio de um fator multiplicativo:
-   $$T_{\text{traffic}} = T_{\text{free\_flow}} \times F_{\text{congestion}}$$
+   $$T_{\text{traffic}} = T_{\text{free flow}} \times F_{\text{congestion}}$$
    Onde $F_{\text{congestion}}$ possui um fator basal aleatório de $1.0\times\text{ a }1.25\times$ somado a uma penalidade concêntrica (de até $+2.0\times$) que diminui linearmente conforme a distância ao centro de congestionamento (definido nas coordenadas da UFRN) aumenta, estendendo-se por um raio de $1200\text{ metros}$.
 
 ### 2.3 Modelagem Multimodal e Otimização de Embarque
