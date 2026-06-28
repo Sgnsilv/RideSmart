@@ -132,15 +132,21 @@ if 'my_map' in st.session_state and st.session_state.my_map is not None:
             click_lat = click['lat']
             click_lon = click['lng']
             
-            # Snap and update Origin
+            # If Origin Selection is active:
+            # Snap to walking graph, save, and IMMEDIATELY switch dropdown to lock it
             if st.session_state.origin_sel_val == '📍 Selecionar no Mapa...':
                 node = ox.distance.nearest_nodes(G_walk, X=click_lon, Y=click_lat)
                 st.session_state.start_coords = (G_walk.nodes[node]['y'], G_walk.nodes[node]['x'])
+                st.session_state.origin_sel_val = 'Coordenada Customizada'
+                st.rerun()
                 
-            # Snap and update Destination
+            # If Destination Selection is active:
+            # Snap to driving graph, save, and IMMEDIATELY switch dropdown to lock it
             elif st.session_state.dest_sel_val == '📍 Selecionar no Mapa...':
                 node = ox.distance.nearest_nodes(G_drive, X=click_lon, Y=click_lat)
                 st.session_state.dest_coords = (G_drive.nodes[node]['y'], G_drive.nodes[node]['x'])
+                st.session_state.dest_sel_val = 'Coordenada Customizada'
+                st.rerun()
 
 # Sidebar inputs
 st.sidebar.header("⚙️ Configurações da Rota")
@@ -163,6 +169,9 @@ origin_name = st.sidebar.selectbox(
 # If selection changed, update state
 if origin_name != st.session_state.origin_sel_val:
     st.session_state.origin_sel_val = origin_name
+    # When selecting on map, do not update start_coords yet (wait for click)
+    # When selecting custom coordinates, do not update start_coords (handled by inputs below)
+    # When selecting predefined landmark, update coordinates immediately
     if origin_name != '📍 Selecionar no Mapa...' and origin_name != 'Coordenada Customizada':
         st.session_state.start_coords = LANDMARKS[origin_name]
     st.rerun()
@@ -170,9 +179,6 @@ if origin_name != st.session_state.origin_sel_val:
 # Active warning/cancellation for Origin map selection
 if origin_name == '📍 Selecionar no Mapa...':
     st.sidebar.warning("👉 Clique em qualquer ponto do mapa para definir a ORIGEM (A).")
-    if st.sidebar.button("🟢 Confirmar Seleção de Origem", key="confirm_origin"):
-        st.session_state.origin_sel_val = 'Coordenada Customizada'
-        st.rerun()
     if st.sidebar.button("Cancelar Seleção de Origem", key="cancel_origin"):
         st.session_state.origin_sel_val = 'CT (Centro de Tecnologia)'
         st.session_state.start_coords = LANDMARKS['CT (Centro de Tecnologia)']
@@ -205,9 +211,6 @@ if dest_name != st.session_state.dest_sel_val:
 # Active warning/cancellation for Destination map selection
 if dest_name == '📍 Selecionar no Mapa...':
     st.sidebar.warning("👉 Clique em qualquer ponto do mapa para definir o DESTINO (B).")
-    if st.sidebar.button("🔴 Confirmar Seleção de Destino", key="confirm_dest"):
-        st.session_state.dest_sel_val = 'Coordenada Customizada'
-        st.rerun()
     if st.sidebar.button("Cancelar Seleção de Destino", key="cancel_dest"):
         st.session_state.dest_sel_val = 'Midway Mall'
         st.session_state.dest_coords = LANDMARKS['Midway Mall']
@@ -391,7 +394,7 @@ else:
             **💡 Como selecionar no mapa:**
             1. Selecione `📍 Selecionar no Mapa...` no menu de Origem ou Destino na barra lateral.
             2. Clique em qualquer rua do mapa.
-            3. A coordenada será **snappada automaticamente à via válida mais próxima**!
+            3. A coordenada será **snappada automaticamente à via válida mais próxima** e o seletor mudará para **Coordenada Customizada**!
             """)
             
             st.write("---")
