@@ -24,9 +24,9 @@ O problema foi modelado como um **grafo direcionado ($G = (V, E)$)** utilizando 
 Foram definidos três pesos principais nas arestas do grafo para refletir diferentes métricas físicas e operacionais:
 1. **Distância Física (`length`)**: Comprimento real do segmento de via em metros.
 2. **Tempo em Fluxo Livre (`time_free_flow`)**: Tempo ideal de tráfego de carro calculado como:
-   $$T_{\text{free\_flow}} = \frac{\text{comprimento (m)}}{\text{velocidade máxima da via (m/s)}}$$
+   $$T_{\text{free-flow}} = \frac{\text{comprimento (m)}}{\text{velocidade máxima da via (m/s)}}$$
 3. **Tempo sob Trânsito Sintético (`time_traffic`)**: Simula congestionamentos no horário de pico por meio de um fator multiplicativo:
-   $$T_{\text{traffic}} = T_{\text{free\_flow}} \times F_{\text{congestion}}$$
+   $$T_{\text{traffic}} = T_{\text{free-flow}} \times F_{\text{congestion}}$$
    Onde $F_{\text{congestion}}$ possui um fator basal aleatório de $1.0\times\text{ a }1.25\times$ somado a uma penalidade concêntrica (de até $+2.0\times$) que diminui linearmente conforme a distância ao centro de congestionamento (definido nas coordenadas da UFRN) aumenta, estendendo-se por um raio de $1200\text{ metros}$.
 
 ### 2.3 Modelagem Multimodal e Caminhada Bidirecional
