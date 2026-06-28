@@ -1,0 +1,37 @@
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/
+
+# Project Specific Cache and Data
+cache/
+
+# Do not commit commands from the professor
+comandos_do_professor/
+
+# Do not commit the technical report directory or temporary LaTeX build outputs
+relatorio/
+MODELO RELATORIO/
+MODELO_SLIDE/
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.blg
+*.bbl
+*.nav
+*.snm
+*.synctex.gz
+*.pdf
+
+# Local generated interactive maps
+custom_route.png
+walkable_graph_study.md

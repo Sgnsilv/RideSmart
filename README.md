@@ -11,14 +11,21 @@ Dado um ponto de origem $A$, um destino $B$ e uma distância máxima de caminhad
 * **Trecho Pedestre ($A \to P$)**: Caminhada a pé do usuário.
 * **Trecho Veicular ($P \to B$)**: Deslocamento de carro solicitado via aplicativo.
 
+### Função Objetivo: Otimização Global vs. Veículo-Cêntrica
+A modelagem do RideSmart destaca uma escolha importante de design de algoritmo:
+* **Abordagem Otimização Global (Adotada)**: Minimiza o tempo total do passageiro ($T_{\text{caminhada}} + T_{\text{veículo}}$). Evita que o algoritmo sugira caminhadas longas (por exemplo, caminhar $500$ metros, levando $7$ minutos) se a economia no trajeto de carro for ínfima (apenas alguns segundos), o que seria ineficiente na prática.
+* **Abordagem Veículo-Cêntrica**: Minimiza apenas o tempo de carro ($T_{\text{veículo}}$) sujeito ao limite $X$ de caminhada. Embora matematicamente simples, essa interpretação ignora o tempo que o usuário gasta a pé, sendo menos representativa para sistemas de mobilidade reais.
+
 ---
 
 ## 2. Modelagem do Problema
 
-### 2.1 Representação do Grafo
-O problema foi modelado como um **grafo direcionado ($G = (V, E)$)** utilizando a biblioteca `NetworkX` para a estrutura de dados. A malha viária real de Natal/RN foi extraída e convertida a partir de dados geográficos do OpenStreetMap usando a biblioteca `OSMnx`, centrada na região que abrange o Campus Central da UFRN, Midway Mall, Natal Shopping e a Havan, cobrindo uma área de raio $3.5\text{ km}$.
-* **Nós ($V$)**: Representam interseções de vias, cruzamentos, retornos ou bifurcações. Cada nó possui atributos geográficos (`x` para longitude e `y` para latitude).
-* **Arestas ($E$)**: Representam os segmentos de vias físicas que conectam as interseções, respeitando as mãos de direção das vias (grafo direcionado).
+### 2.1 Representação do Grafo e Fusão Multimodal
+O problema foi modelado utilizando uma **arquitetura de fusão de grafos multimodais**, separando a infraestrutura de pedestres e veículos em dois grafos distintos, extraídos via `OSMnx` com raio de $3.5\text{ km}$:
+1. **Grafo de Caminhada ($G_{\text{walk}}$)**: Baixado com `network_type='walk'`, contendo calçadas, escadarias, passarelas e áreas pedonais exclusivas. As arestas são bidirecionais (pedestres podem caminhar em ambos os sentidos).
+2. **Grafo de Veículos ($G_{\text{drive}}$)**: Baixado com `network_type='drive'`, representando as ruas físicas transitáveis por carros, respeitando estritamente o sentido das vias (mão única/mão dupla).
+
+A conexão entre ambos os grafos é feita através de um **Mapeamento de Transferência Espacial** construído com a estrutura de dados **KDTree** (`scipy.spatial.KDTree`). Cada nó de $G_{\text{walk}}$ é conectado ao nó correspondente mais próximo de $G_{\text{drive}}$ (onde um veículo pode parar legalmente) se a distância geográfica calculada pela fórmula de Haversine for menor ou igual a $30\text{ metros}$.
 
 ### 2.2 Funções de Peso (Custos das Arestas)
 Foram definidos três pesos principais nas arestas do grafo para refletir diferentes métricas físicas e operacionais:
@@ -29,13 +36,14 @@ Foram definidos três pesos principais nas arestas do grafo para refletir difere
    $$T_{\text{traffic}} = T_{\text{free\_flow}} \times F_{\text{congestion}}$$
    Onde $F_{\text{congestion}}$ possui um fator basal aleatório de $1.0\times\text{ a }1.25\times$ somado a uma penalidade concêntrica (de até $+2.0\times$) que diminui linearmente conforme a distância ao centro de congestionamento (definido nas coordenadas da UFRN) aumenta, estendendo-se por um raio de $1200\text{ metros}$.
 
-### 2.3 Modelagem Multimodal e Caminhada Bidirecional
-Para determinar o ponto de embarque ótimo $P$:
-1. A partir do nó de origem $A$, buscamos todos os nós candidatos $P$ que estejam a uma distância máxima de caminhada a pé de $X$ metros (restrição do usuário).
-2. **Ajuste Importante na Modelagem**: Pedestres podem caminhar livremente em calçadas nos dois sentidos da via, ignorando contramão de trânsito. Portanto, a busca pelos nós candidatos a pé foi corrigida para ser **bidirecional** (explorando predecessores e sucessores de forma não direcionada), o que aumentou drasticamente a eficácia da simulação.
-3. Para cada candidato $P$, é calculada a rota ótima de carro de $P \to B$.
-4. O ponto $P$ que minimiza a soma do tempo de caminhada (com velocidade média fixada em $1.2\text{ m/s}$) e o tempo de condução de carro é escolhido.
-5. O sistema compara o tempo total resultante com a opção sem caminhada ($P = A$) para obter a economia real de tempo (ganho).
+### 2.3 Modelagem Multimodal e Otimização de Embarque
+Para determinar o ponto de embarque ótimo $P$ a partir de uma coordenada de origem $A$ e destino $B$:
+1. O ponto de partida $A$ é associado ao nó mais próximo no grafo de pedestres $G_{\text{walk}}$. O destino $B$ é associado ao nó mais próximo no grafo de carros $G_{\text{drive}}$.
+2. Realiza-se uma busca de custo mínimo (Dijkstra) a partir do nó de origem sobre $G_{\text{walk}}$, identificando todas as interseções alcançáveis a pé dentro de uma distância máxima de caminhada de $X$ metros.
+3. Cada nó alcançado a pé é traduzido para o nó de embarque correspondente em $G_{\text{drive}}$ utilizando o mapeamento de transferência espacial.
+4. Para cada nó candidato de embarque $P$ em $G_{\text{drive}}$, é calculada a rota ótima de carro de $P \to B$.
+5. O ponto $P$ que minimiza o tempo total (tempo de caminhada a $1.2\text{ m/s}$ + tempo de condução de carro) é escolhido como embarque ótimo.
+6. O sistema compara o tempo resultante com o cenário sem caminhada (embarque de carro na própria origem) para calcular o ganho real de tempo.
 
 ---
 
@@ -71,20 +79,16 @@ Para validar o algoritmo sob a influência de vias de mão única e trânsito pe
 3. **Cenário 3: Sensibilidade ao Trânsito (UFRN Interno $\to$ Midway Mall)**:
    * **Origem (A)**: Nó `501034004` (Setor de Aulas UFRN)
    * **Destino (B)**: Nó `505552959` (Shopping Midway Mall)
-   * **Comportamento**: Demonstra o dinamismo da escolha de embarque. Em fluxo livre, o melhor é embarcar na origem. Em horários de pico (trânsito ativado), o ponto de embarque se desloca para o nó `500986659` (caminhada de **25.7 metros**) para desviar do congestionamento local.
+   * **Comportamento**: Demonstra o dinamismo da escolha de embarque. Em fluxo livre, o melhor é embarcar na origem. Em horá## 5. Resultados
 
----
-
-## 5. Resultados
-
-Abaixo está a tabela comparativa contendo as médias computacionais obtidas no benchmark experimental das 50 consultas:
+Abaixo está a tabela comparativa contendo as médias computacionais obtidas no benchmark experimental das 50 consultas (executadas na malha viária real de Natal/RN com 4.733 nós):
 
 | Algoritmo | Tempo Médio (ms) | Nós Expandidos Médios | Eficiência de Busca |
 | :--- | :---: | :---: | :---: |
-| **Dijkstra Simples** | 2.50 ms | 134.5 | Ruim ($O(V^2)$) |
-| **Dijkstra Heap** | 0.22 ms | 135.5 | Excelente |
-| **A\*** | 0.35 ms | 98.4 | Altamente Direcionada |
-| **Dijkstra Bidirecional** | 0.26 ms | 88.2 | Menor Espaço de Busca |
+| **Dijkstra Simples** | 436.54 ms | 2198.54 | Ruim ($O(V^2)$) |
+| **Dijkstra Heap** | 4.27 ms | 2199.54 | Excelente |
+| **A\*** | 4.26 ms | 1198.64 | Altamente Direcionada |
+| **Dijkstra Bidirecional** | 4.47 ms | 1258.60 | Menor Espaço de Busca |
 
 A visualização gráfica consolidada dessas métricas está salva no repositório na pasta `img/`:
 
@@ -97,19 +101,19 @@ A visualização gráfica consolidada dessas métricas está salva no repositór
 ### 6.1 Respostas às Questões de Discussão
 
 #### 1. Como o problema foi modelado como grafo?
-O problema foi representado como um grafo direcionado onde as ruas são arestas que contêm custos e os cruzamentos são nós geolocalizados. A busca multimodal avaliou um subgrafo de caminhada ao redor da origem e, a partir de cada nó desse subgrafo, calculou caminhos mínimos de carro até o destino usando os pesos configurados.
+O problema foi modelado utilizando uma fusão de grafos multimodais: a rede de pedestres ($G_{\text{walk}}$) e a rede de veículos ($G_{\text{drive}}$). As conexões entre os dois grafos foram estabelecidas por coordenadas geográficas mais próximas via KDTree. O pedestre anda em $G_{\text{walk}}$ até um ponto candidato de transferência $P$, a partir do qual o veículo se desloca no grafo direcionado $G_{\text{drive}}$ até o destino final.
 
 #### 2. O que representam os nós e as arestas?
-Nós representam interseções viárias reais de Natal/RN. Arestas representam as ruas e avenidas físicas que conectam essas interseções, possuindo atributos de direção, distância física e limites de velocidade.
+Nós representam interseções viárias e bifurcações nas redes de Natal/RN. Arestas representam ruas, avenidas e calçadas físicas que conectam essas interseções, com sentidos direcionais e velocidades diferenciadas.
 
 #### 3. Quais pesos foram usados?
-Foram usados pesos de distância física (metros) para pedestres e menor caminho em extensão, tempo de tráfego teórico em fluxo livre (segundos) e tempo estimado com trânsito sintético (segundos) sob pico de congestionamento.
+Para pedestres em $G_{\text{walk}}$, o peso foi a distância física em metros (`length`). Para veículos em $G_{\text{drive}}$, o peso foi o tempo estimado sob trânsito sintético em segundos (`time_traffic`).
 
 #### 4. Como o trânsito sintético alterou as rotas?
 A aplicação da penalidade de trânsito ao redor da UFRN alterou significativamente as rotas de carro, induzindo-as a desviar do anel viário do campus e de cruzamentos críticos de Lagoa Nova em direção a vias perimetrais mais rápidas. Além disso, o trânsito fez com que o melhor ponto de embarque do usuário mudasse, forçando-o a caminhar para fora do núcleo congestionado.
 
 #### 5. Caminhar alguns metros melhorou a solução?
-Sim. No **Cenário 1 (Reitoria da UFRN $\to$ Midway Mall)**, caminhar apenas **15.7 metros** para atravessar o loop da Reitoria poupou o veículo de dar uma grande volta no anel viário do campus sob trânsito intenso. Isso resultou em uma economia líquida de **147.3 segundos** (quase 2.5 minutos) de tempo de viagem de carro total.
+Sim. No **Cenário 1 (Reitoria da UFRN $\to$ Midway Mall)**, caminhar apenas **13.1 segundos** ($15.7$ metros) para atravessar o loop da Reitoria poupou o veículo de dar uma grande volta no anel viário do campus sob trânsito intenso. Isso resultou em uma economia líquida de **147.3 segundos** (quase 2.5 minutos) de tempo de viagem de carro total.
 
 #### 6. Em quais casos caminhar atrapalhou?
 Caminhar aumentou o tempo total de viagem em rotas onde a origem do usuário já estava fora da zona de trânsito pesado (como no **Cenário 2: Natal Shopping $\to$ ECT**). Como a velocidade média de caminhada ($1.2\text{ m/s}$) é muito menor do que a do carro, o tempo gasto caminhando a pé anulava qualquer ganho ínfimo que o veículo pudesse obter no trajeto.
@@ -118,13 +122,13 @@ Caminhar aumentou o tempo total de viagem em rotas onde a origem do usuário já
 Não. Em condições de congestionamento (trânsito sintético ativo), as rotas mais rápidas de carro contornaram a área central congestionada. Isso gerou percursos mais longos fisicamente em distância, mas que foram percorridos em menos tempo em comparação com a rota direta congestionada.
 
 #### 8. O A\* expandiu menos nós que o Dijkstra?
-Sim. Enquanto o Dijkstra (Heap e Simples) expandiu em média 135.5 nós por rota por realizar buscas radiais uniformes em todas as direções, o A\* utilizou a heurística de distância geográfica para orientar a busca diretamente para o destino, reduzindo o número médio de nós expandidos para **98.4 nós**.
+Sim, drasticamente. Enquanto o Dijkstra (Heap e Simples) expandiu em média 2199.54 nós por rota por realizar buscas radiais uniformes em todas as direções, o A\* utilizou a heurística de distância geográfica para orientar a busca diretamente para o destino, reduzindo o número médio de nós expandidos para **1198.64 nós** (uma redução de ~45%).
 
 #### 9. O Dijkstra com Heap foi mais eficiente que o Dijkstra simples?
-Sim, de forma esmagadora. A implementação com Min-Heap rodou em apenas **0.22 ms** em média, enquanto a busca simples linear demorou **2.50 ms** por consulta, provando a importância das estruturas de dados eficientes para problemas em grafos viários de escala urbana.
+Sim, de forma esmagadora. A implementação com Min-Heap rodou em apenas **4.27 ms** em média, enquanto a busca simples linear demorou **436.54 ms** por consulta (100 vezes mais lenta), provando a importância das estruturas de dados eficientes para problemas em grafos viários de escala urbana.
 
 #### 10. O algoritmo da literatura trouxe algum ganho?
-Sim. O **Dijkstra Bidirecional** obteve o menor número médio de nós expandidos de todo o benchmark (**88.2 nós**), apresentando um tempo de execução de apenas **0.26 ms**. Ele acelerou a busca na prática ao restringir a exploração a duas fronteiras geográficas que se encontram no meio, evitando varrer áreas irrelevantes.
+Sim. O **Dijkstra Bidirecional** reduziu o número médio de nós expandidos para **1258.60 nós** (uma redução de ~43% comparado ao Dijkstra Heap tradicional), apresentando um tempo de execução médio de **4.47 ms**. Ele acelerou a busca na prática ao restringir a exploração a duas fronteiras geográficas que se encontram no meio, evitando varrer áreas irrelevantes.
 
 #### 11. Quais limitações existem na modelagem proposta?
 * O trânsito sintético é estático ao longo do tempo (não varia com o deslocamento do veículo).
