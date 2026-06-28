@@ -175,6 +175,16 @@ jupyter notebook RideSmart_Notebook.ipynb
 
 Execute as células em sequência para ver a simulação passo a passo, a plotagem dos mapas interativos do Folium e a execução dos benchmarks de tempo.
 
+### 8.3 Executar o Aplicativo Interativo Streamlit (Demo Section)
+Para a apresentação ou demonstração interativa em tempo real, desenvolvemos um aplicativo web Streamlit. Ele permite alterar a origem, destino, raio de trânsito e o algoritmo de busca em tempo real com mapas interativos.
+
+Para executá-lo:
+```bash
+# Ativar o ambiente virtual e rodar o app
+streamlit run ridesmart_app/app.py
+```
+O navegador será aberto automaticamente em `http://localhost:8501`.
+
 ---
 
 ### Grupo & Atribuições
