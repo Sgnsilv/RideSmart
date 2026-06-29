@@ -163,7 +163,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 # Instalar pacotes requeridos
-pip install osmnx networkx matplotlib pandas folium ipykernel
+pip install -r requirements.txt
 ```
 
 ### 8.2 Executar o Notebook Jupyter
